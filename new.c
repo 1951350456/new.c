@@ -41,10 +41,16 @@
 #define		TCNTO4    	( *((volatile unsigned long *)(PWMTIMER_BASE+0x40)) )
 #define		TINT_CSTAT 	( *((volatile unsigned long *)(PWMTIMER_BASE+0x44)) )
 
+
 typedef void (isr) (void);
 extern void asm_timer_irq();
 extern void asm_k1_irq();
 int t;
+int hundred = 0;
+int ten = 0;
+int one = 0;
+int show_state = 0;
+
 void irq_init(void)
 {
 	/* 在中断控制器里使能timer0中断 */
@@ -86,28 +92,35 @@ void irq_init(void)
 	/*熄灭四个LED灯*/
 	GPKDATA = 0xff;
 }
-
+int flag = 0;
 // timer0中断的中断处理函数
 void do_irq()
 {
+	//设LED1对应个位，LED2对应十位，LED3对应百位。K3按下时，三个LED灯显示当前通过按键设置的数字，
+	//即从LED1到LED3，三个LED灯逐一按1秒（定时器中断实现）的间隔闪烁所对应数字的次数。
 	
 	unsigned long uTmp;
-	t++;
-	switch(t)
-	{
-		case 1:
-		GPKDATA = 0xef;
-		break;
-		case 2:
-		GPKDATA = 0xdf;
-		break;
-		case 3:
-		GPKDATA = 0xbf;
-		break;
-		case 4:
-		GPKDATA = 0x7f;
-		t = 0;
-		break;
+	if(flag == 0){
+		if(show_state == 1){
+			//0xef;0xdf;0xbf;0x7f;
+			if(one != 0){
+			
+				GPKDATA = 0xef;
+				one -= 1;
+			}
+			else if(ten != 0){
+				GPKDATA = 0xdf;
+				ten -= 1;
+			}
+			else if(hundred != 0){
+				GPKDATA = 0xbf;
+				hundred -= 1;
+			}
+		}
+		flag = 1;
+	}else{
+		GPKDATA = 0xff;
+		flag = 0;
 	}
 
 	//清timer0的中断状态寄存器
@@ -116,46 +129,25 @@ void do_irq()
 	VIC0ADDRESS=0x0;	
 }
 
+
 void do_irq_key(void)
 {
-	int i = 0;
-
-	//GPKDATA = 0x00;
-
-
-	/* 分辨是哪个中断 */
-	/*for (i = 0; i < 4; i ++)
-	{
-		if (EINT0PEND & (1<<i))
-		{
-			GPKDATA &= ~(1<<(i+4));
-		}
-		else
-		{
-			GPKDATA |= 1<<(i+4);
-		}
+	//if(EINT0PEND & (1<<0))
+	if (EINT0PEND & (1<<1)) {//k2按下
+        	if (EINT0PEND & (1<<0))hundred += 1;  // 百位
+		else ten += 1;
+    	}else {
+		if (EINT0PEND & (1<<0))one += 1;
 	}
-	*/
-	for(i=0;i<4;i++){
-		if(EINT0PEND & (1<<i)){
-			if(i == 0)GPKDATA = 0xef;
-			if(i == 1)GPKDATA = 0xdf;
-			if(i == 2)GPKDATA = 0xbf;
-			if(i == 3)GPKDATA = 0x7f;
-		}
+	if (EINT0PEND & (1<<2)){//k3按下
+		show_state = 1;
 	}
-	/*
-
-	if (EINT0PEND & 0x8)
-	{
-		GPKDATA = 0xf0;
-	}
-	*/
 	
 	/* 清中断 */
 	EINT0PEND   = 0x3f;
 	VIC0ADDRESS = 0;
 }
+
 
 // 初始化timer
 void timer_init(unsigned long utimer,unsigned long uprescaler,unsigned long udivider,unsigned long utcntb,unsigned long utcmpb)
@@ -170,10 +162,4 @@ void timer_init(unsigned long utimer,unsigned long uprescaler,unsigned long udiv
 	TCFG0 = temp0;
 
 	// 16分频
-	temp0 = TCFG1;
-	temp0 = (temp0 & (~(0xf<<4*utimer))& (~(1<<20))) |(udivider<<4*utimer);
-	TCFG1 = temp0;
-
-	// 1s = 62500hz
-	TCNTB0 = utcntb;
 }
