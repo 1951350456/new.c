@@ -1,10 +1,7 @@
 #include "stdio.h"
-<<<<<<< HEAD
 //asdf
 // lzy 提交 22：52
 // change here
-=======
->>>>>>> 5ed4614af5e36695125cfeaed124f813dbfa4c85
 #define GPKCON0     		(*((volatile unsigned long *)0x7F008800))
 #define GPKDATA     			(*((volatile unsigned long *)0x7F008808))
 #define GPNCON     			(*((volatile unsigned long *)0x7F008830))
