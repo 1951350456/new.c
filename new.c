@@ -1,4 +1,5 @@
 #include "stdio.h"
+//asdf
 // lzy 提交 22：52
 // change here
 #define GPKCON0     		(*((volatile unsigned long *)0x7F008800))
