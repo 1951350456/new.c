@@ -19,7 +19,7 @@
 #define VIC0PROTECTION 		(*((volatile unsigned long *)0x71200020))
 #define VIC0SWPRIORITYMASK 	(*((volatile unsigned long *)0x71200024))
 #define VIC0PRIORITYDAISY  	(*((volatile unsigned long *)0x71200028))
-#define VIC0ADDRESS        	(*((volatile unsigned long *)0x71200f00))
+
 
 #define		PWMTIMER_BASE			(0x7F006000)
 #define		TCFG0    	( *((volatile unsigned long *)(PWMTIMER_BASE+0x00)) )
@@ -93,6 +93,9 @@ void irq_init(void)
 	GPKDATA = 0xff;
 }
 int flag = 0;
+int flag2 = 0;
+int cnt1 = 0;
+int cnt2 = 0;
 // timer0中断的中断处理函数
 void do_irq()
 {
@@ -100,29 +103,59 @@ void do_irq()
 	//即从LED1到LED3，三个LED灯逐一按1秒（定时器中断实现）的间隔闪烁所对应数字的次数。
 	
 	unsigned long uTmp;
-	if(flag == 0){
-		if(show_state == 1){
-			//0xef;0xdf;0xbf;0x7f;
-			if(one != 0){
-			
-				GPKDATA = 0xef;
-				one -= 1;
-			}
-			else if(ten != 0){
-				GPKDATA = 0xdf;
-				ten -= 1;
-			}
-			else if(hundred != 0){
-				GPKDATA = 0xbf;
-				hundred -= 1;
-			}
+	if(show_state == 2){
+		int hundred = 0;
+		int ten = 0;
+		int one = 0;
+		if(flag2 == 0){
+			GPKDATA = 0X0f;
+			flag2 = 1;
 		}
-		flag = 1;
-	}else{
-		GPKDATA = 0xff;
-		flag = 0;
+		else if(flag2==1){
+		    GPKDATA = 0xff;
+			flag2 = 0;
+		}
+		if(cnt2==6){
+			GPKDATA = 0xff;
+			cnt2 = 0;
+			cnt1 = 0;
+			int flag = 0;
+			int flag2 = 0;
+			int show_state = 0;
+		}
+		cnt2+=1;
 	}
+	else{
+		if(flag == 0){
+			if(show_state == 1){
+				//0xef;0xdf;0xbf;0x7f;
+				if(one != 0){
+				
+					GPKDATA = 0xef;
+					one -= 1;
+				}
+				else if(ten != 0){
+					GPKDATA = 0xdf;
+					ten -= 1;
+				}
+				else if(hundred != 0){
+					GPKDATA = 0xbf;
+					hundred -= 1;
+				}
+			}
+			if(cnt1!=1)
+				cnt1+=1;
+			else
+				flag=1;
 
+		}else{
+			GPKDATA = 0xff;
+			if(cnt1!=0)
+				cnt1-=1;
+			else
+				flag=0;
+		}
+	}
 	//清timer0的中断状态寄存器
 	uTmp = TINT_CSTAT;
 	TINT_CSTAT = uTmp;
@@ -140,7 +173,13 @@ void do_irq_key(void)
 		if (EINT0PEND & (1<<0))one += 1;
 	}
 	if (EINT0PEND & (1<<2)){//k3按下
-		show_state = 1;
+	//k3按住同时k4按下，则清除k1、k2按键状态
+		if(EINT0PND & (1<<3)){
+			show_state=2;
+		}
+		else{
+			show_state = 1;
+		}
 	}
 	
 	/* 清中断 */
