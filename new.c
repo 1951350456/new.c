@@ -19,7 +19,7 @@
 #define VIC0PROTECTION 		(*((volatile unsigned long *)0x71200020))
 #define VIC0SWPRIORITYMASK 	(*((volatile unsigned long *)0x71200024))
 #define VIC0PRIORITYDAISY  	(*((volatile unsigned long *)0x71200028))
-#define VIC0ADDRESS        	(*((volatile unsigned long *)0x71200f00))
+
 
 #define		PWMTIMER_BASE			(0x7F006000)
 #define		TCFG0    	( *((volatile unsigned long *)(PWMTIMER_BASE+0x00)) )
