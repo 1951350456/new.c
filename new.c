@@ -1,4 +1,5 @@
 #include "stdio.h"
+// lzy 提交 22：52
 #define GPKCON0     		(*((volatile unsigned long *)0x7F008800))
 #define GPKDATA     			(*((volatile unsigned long *)0x7F008808))
 #define GPNCON     			(*((volatile unsigned long *)0x7F008830))
