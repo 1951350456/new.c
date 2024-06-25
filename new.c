@@ -125,6 +125,12 @@ void do_irq()
 		}
 		cnt2+=1;
 	}
+	//其它情况下，LED4按1秒（定时器中断实现）的间隔闪烁个位数字对应的次数。
+	else if(show_state==3){
+		
+	}
+	//K3按下时，三个LED灯显示当前通过按键设置的数字，
+	//即从LED1到LED3，三个LED灯逐一按1秒（定时器中断实现）的间隔闪烁所对应数字的次数。 
 	else{
 		if(flag == 0){
 			if(show_state == 1){
@@ -165,22 +171,62 @@ void do_irq()
 
 void do_irq_key(void)
 {
-	//if(EINT0PEND & (1<<0))
-	if (EINT0PEND & (1<<1)) {//k2按下
-        	if (EINT0PEND & (1<<0))hundred += 1;  // 百位
-		else ten += 1;
-    	}else {
-		if (EINT0PEND & (1<<0))one += 1;
+	long temp=0;
+	int k1=0;
+	//k2按下
+	if(EINT0PEND & (1<<1)){
+		while (EINT0PEND & (1<<1)&&(temp!=20))
+		{
+			temp+=1;
+		}
+		while (EINT0PEND & (1<<1)&&(temp==20))
+		{
+			if (EINT0PEND & (1<<0)){
+				k1=1;
+			}
+		}//k2短按
+		if(temp!=20){
+			ten += 1;
+		}
+		//k2长按同时按k1
+		if(k1)
+		hundred+=1;// 百位
 	}
-	if (EINT0PEND & (1<<2)){//k3按下
+	else if (EINT0PEND & (1<<2)){//k3按下
 	//k3按住同时k4按下，则清除k1、k2按键状态
-		if(EINT0PND & (1<<3)){
-			show_state=2;
+		long temp2=0;
+		int k4=0;
+		while(EINT0PEND & (1<<2)&&temp2!=20){
+			temp2+=1;
 		}
-		else{
-			show_state = 1;
+		while(EINT0PEND & (1<<2)&&(temp2==20)){
+			//k4按下
+			if(EINT0PEND & (1<<3)) k4=1;
+		}
+		//k3短按
+		if(temp2!=20){
+			show_state=1;
+		}
+		//k3长按同时按k4
+		if(k4){
+			show_state = 2;
 		}
 	}
+	else if(EINT0PEND & (1<<3)){//k4按下
+		//其他情况
+		if(hundred*100+ten*10+one%2!=0){
+			show_state = 3;
+		}
+		//4的奇数倍
+		else if(hundred*100+ten*10+one%4!=0){
+			show_state = 4;
+		}
+		//4的偶数倍
+		else
+			show_state = 5;
+	}
+	else if(EINT0PEND & (1<<0))
+		one+=1;
 	
 	/* 清中断 */
 	EINT0PEND   = 0x3f;
