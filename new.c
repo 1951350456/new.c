@@ -21,6 +21,11 @@
 #define VIC0PRIORITYDAISY  	(*((volatile unsigned long *)0x71200028))
 #define VIC0ADDRESS        	(*((volatile unsigned long *)0x71200f00))
 
+
+//定时器1
+#define VIC1INTENABLE  		(*((volatile unsigned long *)0x71300010))
+#define VIC1INTSELECT  		(*((volatile unsigned long *)0x7130000c))
+
 #define		PWMTIMER_BASE			(0x7F006000)
 #define		TCFG0    	( *((volatile unsigned long *)(PWMTIMER_BASE+0x00)) )
 #define		TCFG1    	( *((volatile unsigned long *)(PWMTIMER_BASE+0x04)) )
@@ -45,6 +50,7 @@
 typedef void (isr) (void);
 extern void asm_timer_irq();
 extern void asm_k1_irq();
+extern void asm_timer1_irq();
 int t;
 double hundred = 0;
 double ten = 0;
@@ -63,14 +69,14 @@ void irq_init(void)
 	isr_array[0] = (isr*)asm_timer_irq;
 
 	/* 在中断控制器里使能timer1中断 */
-	
-	VIC0INTENABLE |= (1<<23);
 
-	VIC0INTSELECT =0;
+	VIC1INTENABLE |= (1<<23);
 
-	isr** isr_array = (isr**)(0x7120015C);
+	VIC1INTSELECT =0;
 
-	isr_array[0] = (isr*)asm_timer_irq;
+	isr** isr_array_1 = (isr**)(0x7130015C);
+
+	isr_array_1[0] = (isr*)asm_timer1_irq;
 
 	/* 配置GPN0~5引脚为中断功能 */
 	GPNCON &= ~(0xff);
@@ -238,7 +244,7 @@ void do_irq()
 		}
 		if(one==0&&ten==0&&hundred==0){
 			show_state = 0;
-			falg=0;
+			flag=0;
 			cnt1=0;
 		}
 	}
@@ -247,7 +253,25 @@ void do_irq()
 	TINT_CSTAT = uTmp;
 	VIC0ADDRESS=0x0;	
 }
+int temp_for_timer1 = 0;
+// timer1中断的中断处理函数
+void do_irq_timer1()
+{
 
+	unsigned long uTmp;
+	if(temp_for_timer1 < 1){
+		GPKDATA = 0xbf;
+		temp_for_timer1++;
+
+	}else {
+		temp_for_timer1 = 0;
+		GPKDATA = 0xff;
+	}
+	//清timer0的中断状态寄存器
+	uTmp = TINT_CSTAT;
+	TINT_CSTAT = uTmp;
+	VIC0ADDRESS=0x0;	
+}
 
 void do_irq_key(void)
 {
