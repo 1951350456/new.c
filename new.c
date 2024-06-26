@@ -25,6 +25,7 @@
 //定时器1
 #define VIC1INTENABLE  		(*((volatile unsigned long *)0x71300010))
 #define VIC1INTSELECT  		(*((volatile unsigned long *)0x7130000c))
+#define VIC1ADDRESS        	(*((volatile unsigned long *)0x71300f00))
 
 #define		PWMTIMER_BASE			(0x7F006000)
 #define		TCFG0    	( *((volatile unsigned long *)(PWMTIMER_BASE+0x00)) )
@@ -68,11 +69,11 @@ void irq_init(void)
 
 	isr_array[0] = (isr*)asm_timer_irq;
 
-	/* 在中断控制器里使能timer1中断 */
+	/* 在中断控制器里使能timer2中断 */
 
-	VIC1INTENABLE |= (1<<23);
+	VIC0INTENABLE |= (1<<25);
 
-	VIC1INTSELECT =0;
+	VIC0INTSELECT =0;
 
 	isr** isr_array_1 = (isr**)(0x7130015C);
 
@@ -179,15 +180,15 @@ void do_irq()
 	else if(show_state == 4){
 	    if(cnt1%2==0){
 			if(flag==0){
-				if(cnt2 == 3)
-					flag==1;
 				GPKDATA = ~((1<<(cnt2+4))|0x00);
+				if(cnt2 == 2)
+					flag=1;
 				cnt2+=1;
 			}
 			else{
-				if(cnt2==0)
-					flag==0;
 				GPKDATA = ~((1<<(cnt2+4))|0x00);
+				if(cnt2==1)
+					flag=0;
 				cnt2-=1;
 			}
 		}
@@ -198,16 +199,18 @@ void do_irq()
 	else if(show_state == 5){
 		if(cnt1%4==0){
 			if(flag==0){
-				if(cnt2 == 3)
-					flag==1;
 				GPKDATA = ~((1<<(cnt2+4))|0x00);
+				if(cnt2 == 2)
+					flag=1;
 				cnt2+=1;
+				
 			}
 			else{
-				if(cnt2==0)
-					flag==0;
 				GPKDATA = ~((1<<(cnt2+4))|0x00);
+				if(cnt2==1)
+					flag=0;
 				cnt2-=1;
+				
 			}
 		}
 		cnt1+=1;
@@ -259,22 +262,16 @@ void do_irq_timer1()
 {
 
 	unsigned long uTmp;
-	if(temp_for_timer1 < 1){
-		GPKDATA = 0xbf;
-		temp_for_timer1++;
 
-	}else {
-		temp_for_timer1 = 0;
-		GPKDATA = 0xff;
-	}
 	//清timer0的中断状态寄存器
 	uTmp = TINT_CSTAT;
 	TINT_CSTAT = uTmp;
-	VIC0ADDRESS=0x0;	
+	VIC1ADDRESS=0x0;	
 }
 
 void do_irq_key(void)
 {
+	if(EINT0PEND & (1<<2))GPKDATA = 0xff;
 	long temp=0;
 	int k1=0;
 	//k2按下
@@ -297,29 +294,14 @@ void do_irq_key(void)
 		hundred+=1;// 百位
 	}
 	else if (EINT0PEND & (1<<2)){//k3按下
-	//k3按住同时k4按下，则清除k1、k2按键状态
-		long temp2=0;
-		int k4=0;
-		while(EINT0PEND & (1<<2)&&temp2!=20){
-			temp2+=1;
-		}
-		while(EINT0PEND & (1<<2)&&(temp2==20)){
-			//k4按下
-			if(EINT0PEND & (1<<3)) k4=1;
-		}
-		//k3短按
-		if(temp2!=20){
-			show_state=1;
-			flag = 0;
-			cnt1 = 0;
-		}
-		//k3长按同时按k4
-		if(k4){
-			show_state = 2;
-			flag2 = 0;
-			cnt2 = 0;
-		}
-	}
+    
+        //k3短按
+            show_state=1;
+            flag = 0;
+            cnt1 = 0;
+        
+        
+    }
 	else if(EINT0PEND & (1<<3)){//k4按下
 		//非偶数情况下(其他情况)
 		if(hundred*100+ten*10+(int)one%2!=0){
@@ -362,4 +344,27 @@ void timer_init(unsigned long utimer,unsigned long uprescaler,unsigned long udiv
 	TCFG0 = temp0;
 
 	// 16分频
+	temp0 = TCFG1;
+	temp0 = (temp0 & (~(0xf<<4*utimer))& (~(1<<20))) |(udivider<<4*utimer);
+	TCFG1 = temp0;
+
+	// 1s = 62500hz
+	TCNTB0 = utcntb;
+	TCMPB0 = utcmpb;
+
+	// 手动更新
+	TCON |= 1<<1;
+
+	// 清手动更新位
+	TCON &= ~(1<<1);
+
+	// 自动加载和启动timer0
+	TCON |= (1<<0)|(1<<3);
+
+	// 使能timer0中断
+	temp0 = TINT_CSTAT;
+	temp0 = (temp0 & (~(1<<utimer)))|(1<<(utimer));
+	TINT_CSTAT = temp0;
+
+
 }
